@@ -16,7 +16,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { getPayrollRecords, getPaySlip, getAttendanceDetails, PayrollRecord, PaySlipData } from '../../service/salaryService';
+import { getEmployeePayrollHistory, getPaySlip, getAttendanceDetails, PayrollRecord, PaySlipData } from '../../service/salaryService';
 
 const SalaryScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -24,7 +24,6 @@ const SalaryScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // "YYYY-MM"
   const [showSlipModal, setShowSlipModal] = useState(false);
   const [slipData, setSlipData] = useState<PaySlipData | null>(null);
   const [slipLoading, setSlipLoading] = useState(false);
@@ -36,17 +35,15 @@ const SalaryScreen: React.FC = () => {
   const fetchPayroll = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getPayrollRecords(selectedMonth);
-      if (response.status === 200) {
-        setPayrollRecords(response.data);
-      }
+      const data = await getEmployeePayrollHistory();
+      setPayrollRecords(data || []);
     } catch (err: any) {
-      Alert.alert('Error', 'Failed to fetch payroll records');
+      Alert.alert('Error', 'Failed to fetch payroll history');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedMonth]);
+  }, []);
 
   useEffect(() => {
     fetchPayroll();
@@ -61,10 +58,8 @@ const SalaryScreen: React.FC = () => {
     try {
       setSlipLoading(true);
       setShowSlipModal(true);
-      const response = await getPaySlip(payrollId);
-      if (response.status === 200) {
-        setSlipData(response.data);
-      }
+      const data = await getPaySlip(payrollId);
+      setSlipData(data);
     } catch (err: any) {
       Alert.alert('Error', 'Failed to fetch pay slip');
       setShowSlipModal(false);
@@ -73,14 +68,12 @@ const SalaryScreen: React.FC = () => {
     }
   };
 
-  const handleViewAttendance = async (userId: number) => {
+  const handleViewAttendance = async (userId: number, month: string) => {
     try {
       setAttLoading(true);
       setShowAttendanceModal(true);
-      const response = await getAttendanceDetails(userId, selectedMonth);
-      if (response.status === 200) {
-        setAttendanceList(response.data);
-      }
+      const data = await getAttendanceDetails(userId, month);
+      setAttendanceList(data || []);
     } catch (err: any) {
       Alert.alert('Error', 'Failed to fetch attendance details');
       setShowAttendanceModal(false);
@@ -89,50 +82,67 @@ const SalaryScreen: React.FC = () => {
     }
   };
 
-  const renderPayrollItem = ({ item }: { item: PayrollRecord }) => (
-    <View style={styles.recordCard}>
-      <View style={styles.recordHeader}>
-        <View>
-          <Text style={styles.recordMonth}>{item.month}</Text>
-          <Text style={styles.recordStatus}>{item.status}</Text>
-        </View>
-        <Text style={styles.recordNetSalary}>₹{(item.netSalary || 0).toLocaleString()}</Text>
-      </View>
-      
-      <View style={styles.recordDetails}>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Present</Text>
-          <Text style={styles.detailValue}>{item.daysPresent || 0} Days</Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Gross</Text>
-          <Text style={styles.detailValue}>₹{(item.grossSalary || 0).toLocaleString()}</Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Deductions</Text>
-          <Text style={[styles.detailValue, { color: '#ef4444' }]}>-₹{(item.deductions || 0).toLocaleString()}</Text>
-        </View>
-      </View>
+  const renderPayrollItem = ({ item }: { item: PayrollRecord }) => {
+    const isPaid = item.status?.toUpperCase() === 'PAID';
 
-      <View style={styles.btnRow}>
-        <TouchableOpacity 
-          style={[styles.viewSlipBtn, { flex: 1, marginRight: 8 }]}
-          onPress={() => handleViewSlip(item.id)}
-        >
-          <Icon name="receipt" size={18} color="#b8001d" style={{ marginRight: 8 }} />
-          <Text style={styles.viewSlipText}>Pay Slip</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.viewAttBtn, { flex: 1 }]}
-          onPress={() => handleViewAttendance(item.user?.id || 1)}
-        >
-          <Icon name="event-note" size={18} color="#4b5563" style={{ marginRight: 8 }} />
-          <Text style={styles.viewAttText}>Attendance</Text>
-        </TouchableOpacity>
+    return (
+      <View style={styles.recordCard}>
+        <View style={styles.recordHeader}>
+          <View>
+            <Text style={styles.recordMonth}>{item.month}</Text>
+            <Text style={[styles.recordStatus, { color: isPaid ? '#16a34a' : '#f59e0b' }]}>
+              {item.status?.toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.recordNetSalary}>₹{(item.netSalary || 0).toLocaleString()}</Text>
+        </View>
+        
+        <View style={styles.recordDetails}>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Present</Text>
+            <Text style={styles.detailValue}>{item.daysPresent || 0} Days</Text>
+          </View>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Gross</Text>
+            <Text style={styles.detailValue}>₹{(item.grossSalary || 0).toLocaleString()}</Text>
+          </View>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Deductions</Text>
+            <Text style={[styles.detailValue, { color: '#ef4444' }]}>-₹{(item.deductions || 0).toLocaleString()}</Text>
+          </View>
+        </View>
+  
+        <View style={styles.btnRow}>
+          <TouchableOpacity 
+            style={[
+              styles.viewSlipBtn, 
+              { flex: 1, marginRight: 8 },
+              !isPaid && { borderColor: '#e2e8f0', backgroundColor: '#f8fafc' }
+            ]}
+            onPress={() => isPaid ? handleViewSlip(item.id) : Alert.alert('Action Restricted', 'Pay slip is only available after salary is marked as PAID.')}
+          >
+            <Icon 
+              name={isPaid ? "receipt" : "lock"} 
+              size={18} 
+              color={isPaid ? "#b8001d" : "#94a3b8"} 
+              style={{ marginRight: 8 }} 
+            />
+            <Text style={[styles.viewSlipText, !isPaid && { color: '#94a3b8' }]}>
+              {isPaid ? "Pay Slip" : "Pending"}
+            </Text>
+          </TouchableOpacity>
+  
+          <TouchableOpacity 
+            style={[styles.viewAttBtn, { flex: 1 }]}
+            onPress={() => handleViewAttendance(item.user?.id || 1, item.month)}
+          >
+            <Icon name="event-note" size={18} color="#4b5563" style={{ marginRight: 8 }} />
+            <Text style={styles.viewAttText}>Attendance</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -140,23 +150,11 @@ const SalaryScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Icon name="arrow-back" size={24} color="#1a1c1c" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payroll & Salary</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Payroll History</Text>
+          <Text style={styles.headerSubtitle}>View all your past salary statements</Text>
+        </View>
         <View style={{ width: 40 }} />
-      </View>
-
-      <View style={styles.monthSelector}>
-        <Text style={styles.selectorLabel}>Select Month</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthList}>
-          {['2026-05', '2026-04', '2026-03', '2026-02'].map((m) => (
-            <TouchableOpacity 
-              key={m} 
-              style={[styles.monthItem, selectedMonth === m && styles.monthItemActive]}
-              onPress={() => setSelectedMonth(m)}
-            >
-              <Text style={[styles.monthText, selectedMonth === m && styles.monthTextActive]}>{m}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </View>
 
       {loading ? (
@@ -310,22 +308,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     elevation: 2,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#1a1c1c' },
+  headerTitleContainer: { alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#1a1c1c' },
+  headerSubtitle: { fontSize: 10, color: '#64748b', fontWeight: '600' },
   backBtn: { padding: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  monthSelector: { backgroundColor: '#fff', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  selectorLabel: { fontSize: 12, fontWeight: '600', color: '#64748b', marginLeft: 16, marginBottom: 8 },
-  monthList: { paddingHorizontal: 12 },
-  monthItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f1f5f9',
-    marginHorizontal: 4,
+  monthSelector: {
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
-  monthItemActive: { backgroundColor: '#b8001d' },
-  monthText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
-  monthTextActive: { color: '#fff' },
+  monthArrow: { padding: 8 },
+  monthLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  monthLabelText: { fontSize: 14, fontWeight: '800', color: '#1a1c1c', marginLeft: 6 },
   listContent: { padding: 16 },
   recordCard: {
     backgroundColor: '#fff',

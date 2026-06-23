@@ -16,7 +16,7 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="true">
-      <service android:name="com.asterinet.react.bgactions.RNBackgroundActionsTask" android:stopWithTask="false" />
+      <service android:name="com.asterinet.react.bgactions.RNBackgroundActionsTask" android:stopWithTask="false" android:foregroundServiceType="location" />
       <!-- Application tag ke andar ye service add karo -->
 <service
   android:name="com.supersami.foregroundservice.ForegroundService"

@@ -4,6 +4,7 @@ import { navigateTo } from './navigationRef';
 
 // Base URL for the API
 export const BASE_URL = 'https://mrs.sarvosmi.io/api';
+// export const BASE_URL = 'http://192.168.1.15:9613/api';
 
 const api = axios.create({
   baseURL: BASE_URL,

@@ -208,33 +208,6 @@ const EmployeeProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Live Field Telemetry */}
-        <View style={styles.telemetryCard}>
-          <View style={styles.telemetryHeader}>
-            <View style={styles.telemetryHeaderLeft}>
-              <Icon name="my-location" size={20} color="#b8001d" style={{ marginRight: 8 }} />
-              <Text style={styles.telemetryTitle}>Live Field Telemetry</Text>
-            </View>
-            <Text style={styles.telemetrySub}>REAL-TIME LOCATION</Text>
-          </View>
-          <View style={styles.mapContainer}>
-            <ImageBackground
-              source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCVjjeLLvyxWaCt-XMsTkRnIC3IAVm8cnEGSsGcrRrMfh1O01iWC_iZf4FQ644-ibjgJ48751cgRSZItxvIB6cSvgsmguNefEqWU8sm41NbzkfI5Wx3667R0txj6rkH_jM_eI71l5msR1PUdWXLDfmjgCTjhsA7nEa4DCQ5lVChDHHssVADbRToXN6IOSrCnUvtM1tr35gYo6cHbdJ0KL1qaZS3hWOaIlp2U4CqQ0BPzmQ9C1GJ7aO_hTPpO8OUoom6Cviq0rJKLi1u' }}
-              style={styles.mapBg}
-              imageStyle={{ opacity: 0.8 }}
-            >
-              <View style={styles.mapControls}>
-                <TouchableOpacity style={styles.mapBtn}><Icon name="add" size={16} color="#1a1c1c" /></TouchableOpacity>
-                <TouchableOpacity style={styles.mapBtn}><Icon name="remove" size={16} color="#1a1c1c" /></TouchableOpacity>
-              </View>
-              <View style={styles.mapInfoBox}>
-                <Text style={styles.mapInfoTag}>ACTIVE TRACE</Text>
-                <Text style={styles.mapInfoLoc}>{p.activeTrace || 'Fleet Sector 7-G'}</Text>
-                <Text style={styles.mapInfoTime}>{p.lastSignal || 'Last signal: 2m ago'}</Text>
-              </View>
-            </ImageBackground>
-          </View>
-        </View>
 
         {/* Performance Insight */}
         <View style={styles.perfCard}>
@@ -301,26 +274,24 @@ const EmployeeProfileScreen: React.FC = () => {
 
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => navigation.navigate('Dashboard')}>
-          <Icon name="dashboard" size={24} color="#94a3b8" />
-          <Text style={styles.navLabel}>HOME</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => navigation.navigate('Calendar')}>
-          <Icon name="calendar-month" size={24} color="#94a3b8" />
-          <Text style={styles.navLabel}>CALENDAR</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Icon name="route" size={24} color="#94a3b8" />
-          <Text style={styles.navLabel}>ROUTES</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => navigation.navigate('Profile')}>
-          <View style={styles.navActiveIndicator} />
-          <Icon name="person" size={24} color="#e11d2e" />
-          <Text style={[styles.navLabel, styles.navActiveLabel]}>PROFILE</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom Navigation - Only show if not inside a Tab Navigator */}
+      {navigation.getParent()?.getState()?.type !== 'tab' && (
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => navigation.navigate('Dashboard')}>
+            <Icon name="dashboard" size={24} color="#94a3b8" />
+            <Text style={styles.navLabel}>HOME</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => navigation.navigate('Calendar')}>
+            <Icon name="calendar-month" size={24} color="#94a3b8" />
+            <Text style={styles.navLabel}>CALENDAR</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => navigation.navigate('Profile')}>
+            <View style={styles.navActiveIndicator} />
+            <Icon name="person" size={24} color="#e11d2e" />
+            <Text style={[styles.navLabel, styles.navActiveLabel]}>PROFILE</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
     </SafeAreaView>
   );

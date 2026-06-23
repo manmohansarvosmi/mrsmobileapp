@@ -37,13 +37,18 @@ const LoginScreen: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await authService.login(employeeId, password);
-      navigation.replace('Dashboard');
+      const response = await authService.login(employeeId, password);
+      const role = response.userRole || '';
+      if (role === 'ROLE_ADMIN' || role === 'ADMIN') {
+        navigation.replace('AdminMain');
+      } else {
+        navigation.replace('Dashboard');
+      }
     } catch (error: any) {
       // Fallback for dummy credentials if backend is down or not connected
       if (employeeId === 'admin' && password === 'admin') {
         console.warn('Backend login failed, but allowing admin/admin dummy credentials bypass');
-        navigation.replace('Dashboard');
+        navigation.replace('AdminDashboard');
       } else {
         const message = error?.response?.data?.message || error?.message || 'Invalid credentials or server error.';
         Alert.alert('Login Failed', message);
@@ -171,7 +176,7 @@ const LoginScreen: React.FC = () => {
       {/* Footer */}
       <View style={styles.footer}>
         <View style={styles.footerContent}>
-          <Text style={styles.footerText}>© 2026 Helixion Innovations LLP. All rights reserved.</Text>
+          <Text style={styles.footerText}>© 2025 Helixion Innovations LLP. All rights reserved.</Text>
           <View style={styles.footerLinks}>
             <TouchableOpacity><Text style={styles.footerLinkText}>Privacy Policy</Text></TouchableOpacity>
             <TouchableOpacity><Text style={styles.footerLinkText}>Security</Text></TouchableOpacity>

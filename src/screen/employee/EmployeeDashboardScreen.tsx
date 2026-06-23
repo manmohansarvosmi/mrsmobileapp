@@ -21,12 +21,12 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import Geolocation from 'react-native-geolocation-service';
-import ForegroundService from '@supersami/rn-foreground-service';
+import BackgroundActions from 'react-native-background-actions';
 import BackgroundTimer from 'react-native-background-timer';
 import { getHomeDashboard, HomeDashboard, DayAttendance, RecentActivity } from '../../service/homeService';
 import { punchIn, punchOut, updateLocation } from '../../service/trackingService';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const formatTime = (isoString: string | null | undefined): string => {
   if (!isoString) return '--:--';
@@ -66,7 +66,7 @@ const todayLabel = (): string =>
     timeZone: 'Asia/Kolkata',
   }).toUpperCase();
 
-// ─── GPS Permission ───────────────────────────────────────────────────────────
+// â”€â”€â”€ GPS Permission â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const requestLocationPermission = async (): Promise<boolean> => {
   if (Platform.OS !== 'android') return true;
@@ -124,9 +124,9 @@ const requestLocationPermission = async (): Promise<boolean> => {
   }
 };
 
-// ─── Get Location Promise ─────────────────────────────────────────────────────
+// â”€â”€â”€ Get Location Promise â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const getCurrentPositionAsync = (options?: Geolocation.Options): Promise<{ latitude: number; longitude: number }> =>
+const getCurrentPositionAsync = (options?: any): Promise<{ latitude: number; longitude: number }> =>
   new Promise((resolve, reject) => {
     Geolocation.getCurrentPosition(
       (pos) =>
@@ -145,7 +145,7 @@ const getCurrentPositionAsync = (options?: Geolocation.Options): Promise<{ latit
 const sleep = (time: number) =>
   new Promise((resolve) => setTimeout(() => resolve(null), time));
 
-// ─── Battery Optimization Prompt ─────────────────────────────────────────────
+// â”€â”€â”€ Battery Optimization Prompt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const askBatteryOptimization = () => {
   Alert.alert(
@@ -162,7 +162,7 @@ const askBatteryOptimization = () => {
 };
 
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const EmployeeDashboardScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -174,117 +174,129 @@ const EmployeeDashboardScreen: React.FC = () => {
   const isTrackingRef = useRef(false);
   const intervalRef = useRef<number | null>(null);
 
-  // ── Fetch Dashboard ──────────────────────────────────────────────
-  const fetchDashboard = useCallback(async () => {
+  // ── Fetch Dashboard ──────────────────────────────────────────────────────────
+
+  const fetchDashboard = async () => {
     try {
+      setLoading(true);
       const data = await getHomeDashboard();
-      console.warn('[Dashboard] Data fetched. hasActiveSession:', data.hasActiveSession);
       setDashboard(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Dashboard] Fetch Error:', err);
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to load dashboard');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchDashboard();
-  }, [fetchDashboard]);
+  }, []);
 
-  // ── Foreground Service: Background Location Tracking ─────────────
+  // ── Tracking Task ──────────────────────────────────────────────────────────
 
-  const startTracking = async () => {
+  const getElapsedDuration = (punchInISO: string): string => {
+    try {
+      const diffMs = new Date().getTime() - new Date(punchInISO).getTime();
+      if (diffMs < 0) return '00h 00m 00s';
+      const hours = Math.floor(diffMs / 3600000);
+      const minutes = Math.floor((diffMs % 3600000) / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      return `${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
+    } catch (e) {
+      return 'Calculating...';
+    }
+  };
+
+  const trackingTask = async (taskData: any) => {
+    const punchTime = taskData?.punchInTime;
+
+    await new Promise(async (resolve) => {
+      let updateCount = 0;
+      while (BackgroundActions.isRunning()) {
+        updateCount++;
+        const now = new Date();
+        const timestamp = now.toLocaleTimeString();
+        console.log(`[Tracking Task] Update #${updateCount} at ${timestamp}`);
+
+        // ── Check for Auto Punch-Out 9:00 PM ──
+        if (now.getHours() >= 21) {
+          console.log('[Tracking Task] 9:00 PM REACHED. Triggering Auto Punch Out.');
+          try {
+            await punchOut();
+            await BackgroundActions.updateNotification({
+              taskTitle: 'Duty Auto-Completed',
+              taskDesc: 'Shift ended automatically at 9:00 PM',
+              color: '#4b5563',
+            });
+            isTrackingRef.current = false;
+            await sleep(2000);
+            await BackgroundActions.stop();
+            return; // Exit task
+          } catch (autoErr) {
+            console.error('[Auto Punch Out] Failed:', autoErr);
+          }
+        }
+
+        try {
+          // Update notification with LIVE TIMER
+          const durationStr = punchTime ? getElapsedDuration(punchTime) : 'Updating...';
+          
+          await BackgroundActions.updateNotification({
+            taskTitle: 'MRS Purvia – Duty Active',
+            taskDesc: `Duration: ${durationStr} • Tracking Active`,
+          });
+
+          // Fetch & Sync Location
+          const pos = await new Promise<{ latitude: number; longitude: number } | null>((res) => {
+            const timeoutId = setTimeout(() => res(null), 12000); 
+            Geolocation.getCurrentPosition(
+              (p) => {
+                clearTimeout(timeoutId);
+                res({ latitude: p.coords.latitude, longitude: p.coords.longitude });
+              },
+              (e) => {
+                clearTimeout(timeoutId);
+                res(null);
+              },
+              { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+            );
+          });
+
+          if (pos) {
+            await updateLocation(pos.latitude, pos.longitude);
+          }
+        } catch (err) {
+          console.log('[Tracking Task] Heartbeat Error:', err);
+        }
+        
+        await sleep(15000); // 15s high-frequency sync cycle
+      }
+    });
+  };
+
+  const startTracking = async (pTime?: string) => {
     try {
       if (isTrackingRef.current) return;
       isTrackingRef.current = true;
-      console.log('[Tracking] Starting service and 10s timer...');
+      console.log('[Tracking] Starting Background Task with time:', pTime);
 
-      // 1. Start the Foreground Service (Keep-alive)
-      if (!ForegroundService.is_task_running('keep_alive_task')) {
-        ForegroundService.add_task(
-          () => console.log('[Tracking] Service Keep-alive active'),
-          { delay: 100000, onLoop: true, taskId: 'keep_alive_task' }
-        );
-      }
+      const options = {
+        taskName: 'LocationTracking',
+        taskTitle: 'MRS Purvia – Duty Active',
+        taskDesc: 'Calculating duration...',
+        taskIcon: {
+          name: 'ic_launcher',
+          type: 'mipmap',
+        },
+        color: '#e11d2e',
+        linkingURI: 'mrspurvia://dashboard', 
+        parameters: {
+          punchInTime: pTime || dashboard?.punchInTime,
+        },
+      };
 
-      await ForegroundService.start({
-        id: 1,
-        title: 'MRS Purvia – Duty Active',
-        message: 'Location tracking is active...',
-        icon: 'ic_launcher',
-        ServiceType: 'location',
-
-
-
-
-        button: false,
-      });
-
-      // 2. Start the 10-second Interval
-      let updateCount = 0;
-      intervalRef.current = BackgroundTimer.setInterval(async () => {
-        updateCount++;
-        const timestamp = new Date().toLocaleTimeString();
-        console.log(`[Tracking] Update #${updateCount} at ${timestamp}`);
-
-        try {
-          // Update notification (wrapped in try-catch to avoid loop crash)
-          try {
-            await ForegroundService.update({
-              id: 1,
-              title: 'MRS Purvia – Duty Active',
-              message: `Active: ${updateCount} updates (${timestamp})`,
-              icon: 'ic_launcher',
-            });
-          } catch (e) {
-            console.log('[Tracking] Notification update failed, but tracking continues');
-          }
-
-          // Fetch Location with high/low accuracy fallback
-          const fetchPos = async (high: boolean) => {
-            return await getCurrentPositionAsync({
-              enableHighAccuracy: high,
-              timeout: 10000,
-              maximumAge: 10000,
-              forceRequestLocation: false,
-              forceLocationManager: true,
-            });
-          };
-
-          let pos;
-          try {
-            pos = await fetchPos(true);
-          } catch (e) {
-            console.log('[Tracking] High accuracy failed, using coarse fallback...');
-            pos = await fetchPos(false);
-          }
-
-          // Network Retry Logic
-          let retryCount = 0;
-          const sync = async () => {
-            try {
-              await updateLocation(pos.latitude, pos.longitude);
-              console.log('[Tracking] Sync success');
-            } catch (err: any) {
-              if (retryCount < 2) {
-                retryCount++;
-                console.log(`[Tracking] Network error, retrying #${retryCount}...`);
-                setTimeout(sync, 3000);
-              } else {
-                console.log('[Tracking] Sync failed after retries');
-              }
-            }
-          };
-
-          sync();
-        } catch (err) {
-          console.log('[Tracking] Interval Loop Error:', err);
-        }
-      }, 10000);
-
-      console.log('[Tracking] Background system started successfully.');
+      await BackgroundActions.start(trackingTask, options);
     } catch (err) {
       console.error('[Tracking] Start Failed:', err);
       isTrackingRef.current = false;
@@ -293,14 +305,9 @@ const EmployeeDashboardScreen: React.FC = () => {
 
   const stopTracking = async () => {
     try {
-      console.log('[Tracking] Stopping all tracking...');
+      console.log('[Tracking] Stopping BackgroundActions task...');
       isTrackingRef.current = false;
-      if (intervalRef.current) {
-        BackgroundTimer.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      await ForegroundService.stop();
-      ForegroundService.remove_task('keep_alive_task');
+      await BackgroundActions.stop();
     } catch (err) {
       console.error('[Tracking] Stop Failed:', err);
     }
@@ -310,18 +317,18 @@ const EmployeeDashboardScreen: React.FC = () => {
     if (dashboard === null) return;
 
     if (dashboard.hasActiveSession) {
-      startTracking();
+      startTracking(dashboard.punchInTime ?? undefined);
     } else {
       stopTracking();
     }
-  }, [dashboard?.hasActiveSession]);
+  }, [dashboard?.hasActiveSession, dashboard?.punchInTime]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchDashboard();
   };
 
-  // ── Punch In / Out ───────────────────────────────────────────────
+  // ── Punch In / Out ─────────────────────────────────────────────────────────
   const handlePunch = async () => {
     if (punchLoading) return;
     setPunchLoading(true);
@@ -331,7 +338,6 @@ const EmployeeDashboardScreen: React.FC = () => {
 
       if (dashboard?.hasActiveSession) {
         // ── Punch Out ──
-        // User requested: "punch out pr location fetch call na ho"
         console.log('[Punch] Ending duty (Punch Out) - Skipping Location Fetch...');
         await punchOut();
         await stopTracking();
@@ -366,9 +372,10 @@ const EmployeeDashboardScreen: React.FC = () => {
           return;
         }
 
-        await punchIn();
+        const punchInRes = await punchIn();
+        const serverPunchTime = punchInRes?.data?.punchInTime;
         await updateLocation(lat, lon);
-        await startTracking();
+        await startTracking(serverPunchTime ?? undefined);
         Alert.alert('Punched In', 'Duty started successfully.');
         
         // Ask user to disable battery optimization for reliable background tracking
@@ -386,12 +393,12 @@ const EmployeeDashboardScreen: React.FC = () => {
     }
   };
 
-  // ── Bar chart height ─────────────────────────────────────────────
+  // â”€â”€ Bar chart height â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const maxHours = 10;
   const barHeight = (hours: number) =>
     Math.max(8, Math.round((hours / maxHours) * 80));
 
-  // ── Loading state ────────────────────────────────────────────────
+  // â”€â”€ Loading state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -404,7 +411,7 @@ const EmployeeDashboardScreen: React.FC = () => {
   const firstName = dashboard?.fullName?.split(' ')[0] ?? 'User';
   const isActive = dashboard?.hasActiveSession ?? false;
 
-  // Get initials from full name (e.g. "Rahul Sharma" → "RS")
+  // Get initials from full name (e.g. "Rahul Sharma" â†’ "RS")
   const getInitials = (name: string) => {
     const parts = name?.trim().split(' ').filter(Boolean) ?? [];
     if (parts.length === 0) return '?';
@@ -424,7 +431,7 @@ const EmployeeDashboardScreen: React.FC = () => {
             <Text style={styles.initialsText}>{initials}</Text>
           </View>
           <View style={styles.userInfoLeft}>
-            <Text style={styles.userNameHeader}>{dashboard?.fullName ?? '—'}</Text>
+            <Text style={styles.userNameHeader}>{dashboard?.fullName ?? 'â€”'}</Text>
             <View style={styles.activeStatusBoxSmall}>
               <View style={[styles.activeDotSmall, !isActive && styles.activeDotInactiveSmall]} />
               <Text style={[styles.activeTextSmall, !isActive && styles.activeTextInactiveSmall]}>
@@ -471,8 +478,8 @@ const EmployeeDashboardScreen: React.FC = () => {
                 <Text style={styles.shiftText}>SHIFT: DAY</Text>
               </View>
               <View style={styles.activeStatusBoxSmall}>
-                <View style={[styles.activeDotSmall, !isActive && styles.activeDotInactive]} />
-                <Text style={[styles.activeTextSmall, !isActive && styles.activeTextInactive]}>
+                <View style={[styles.activeDotSmall, !isActive && styles.activeDotInactiveSmall]} />
+                <Text style={[styles.activeTextSmall, !isActive && styles.activeTextInactiveSmall]}>
                   {isActive ? 'ACTIVE' : 'IDLE'}
                 </Text>
               </View>
@@ -530,31 +537,52 @@ const EmployeeDashboardScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Stats Container */}
+        {/* Stats Container - Weekly Activity Tracking */}
         <View style={styles.statsContainer}>
-          {/* Weekly Attendance Bar Chart */}
           <View style={styles.perfCard}>
-            <Text style={styles.perfCardTitle}>THIS WEEK'S ATTENDANCE</Text>
-            <View style={styles.barChart}>
-              {(dashboard?.weeklyAttendance ?? []).map((d: DayAttendance, i: number) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.bar,
-                    {
-                      height: barHeight(d.hours),
-                      backgroundColor: d.present ? '#b8001d' : '#e8e8e8',
-                    },
-                  ]}
-                />
-              ))}
+            <View style={styles.perfCardHeader}>
+              <Text style={styles.perfCardTitle}>ATTENDANCE PROGRESS</Text>
+              <Text style={styles.perfCardSubtitle}>THIS WEEK</Text>
             </View>
-            <View style={styles.barLabels}>
-              {(dashboard?.weeklyAttendance ?? []).map((d: DayAttendance, i: number) => (
-                <Text key={i} style={styles.barLabel}>
-                  {d.day}
+            
+            <View style={styles.activityTracker}>
+              {(dashboard?.weeklyAttendance ?? []).map((d: DayAttendance, i: number) => {
+                const totalGoal = 9; // standard shift
+                const progress = Math.min(1, d.hours / totalGoal);
+                const isActive = d.day === new Date().toLocaleDateString('en-IN', { weekday: 'short' }).toUpperCase();
+
+                return (
+                  <View key={i} style={styles.activityDay}>
+                    <View style={styles.pillTrack}>
+                      <View 
+                        style={[
+                          styles.pillFill, 
+                          { 
+                            height: `${progress * 100}%`,
+                            backgroundColor: d.present ? '#b8001d' : '#f1f5f9'
+                          }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={[styles.activityDayLabel, isActive && styles.activityDayActive]}>{d.day[0]}</Text>
+                    {isActive && <View style={styles.activeDayDot} />}
+                  </View>
+                );
+              })}
+            </View>
+            
+            <View style={styles.summaryFooter}>
+              <View style={styles.footerStat}>
+                <Text style={styles.footerStatVal}>{dashboard?.weeklyAttendance?.filter(d => d.present).length || 0}/7</Text>
+                <Text style={styles.footerStatLabel}>DAYS PRESENT</Text>
+              </View>
+              <View style={styles.footerStatDivider} />
+              <View style={styles.footerStat}>
+                <Text style={styles.footerStatVal}>
+                  {(dashboard?.weeklyAttendance?.reduce((acc, curr) => acc + curr.hours, 0) || 0).toFixed(1)}h
                 </Text>
-              ))}
+                <Text style={styles.footerStatLabel}>TOTAL HOURS</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -576,12 +604,9 @@ const EmployeeDashboardScreen: React.FC = () => {
             {(dashboard?.recentActivity ?? []).map((act: RecentActivity) => {
               const isOnTime = act.status === 'ON_TIME';
               return (
-                <TouchableOpacity
+                <View
                   key={act.attendanceId}
                   style={styles.recentRow}
-                  onPress={() =>
-                    navigation.navigate('Route', { attendanceId: act.attendanceId })
-                  }
                 >
                   <View style={styles.rowLeft}>
                     <View
@@ -625,7 +650,7 @@ const EmployeeDashboardScreen: React.FC = () => {
                       </Text>
                     </View>
                   </View>
-                </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -654,20 +679,6 @@ const EmployeeDashboardScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => {
-            if (dashboard?.hasActiveSession && dashboard.activeAttendanceId) {
-              navigation.navigate('Route', { attendanceId: dashboard.activeAttendanceId });
-            } else {
-              Alert.alert('No Active Session', 'Please punch-in to start tracking your route.');
-            }
-          }}
-        >
-          <Icon name="route" size={24} color="#94a3b8" />
-          <Text style={styles.navLabel}>ROUTES</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
           onPress={() => navigation.navigate('Profile')}
         >
           <Icon name="person" size={24} color="#94a3b8" />
@@ -678,7 +689,7 @@ const EmployeeDashboardScreen: React.FC = () => {
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const styles = StyleSheet.create({
   loadingContainer: {
@@ -817,15 +828,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   shiftText: { fontSize: 10, fontWeight: '700', color: '#fff8f7' },
-  activeStatusBoxSmall: { flexDirection: 'row', alignItems: 'center' },
-  activeDotSmall: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#22c55e',
-    marginRight: 4,
-  },
-  activeTextSmall: { fontSize: 10, fontWeight: '700', color: '#16a34a' },
   timeGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -865,29 +867,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
   },
-  perfCardTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#1a1c1c',
-    marginBottom: 16,
-    letterSpacing: 1,
-  },
-  barChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 80,
-    marginBottom: 8,
-  },
-  bar: { width: '12%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  barLabels: { flexDirection: 'row', justifyContent: 'space-between' },
-  barLabel: {
-    width: '12%',
-    textAlign: 'center',
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#5f5e5e',
-  },
+  perfCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 },
+  perfCardTitle: { fontSize: 10, fontWeight: '800', color: '#64748b', letterSpacing: 1.5 },
+  perfCardSubtitle: { fontSize: 10, fontWeight: '800', color: '#b8001d', letterSpacing: 0.5 },
+  activityTracker: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 100, marginBottom: 20, paddingHorizontal: 4 },
+  activityDay: { alignItems: 'center', flex: 1, position: 'relative' },
+  pillTrack: { width: 12, height: 70, backgroundColor: '#f3f4f6', borderRadius: 6, overflow: 'hidden', marginBottom: 8, justifyContent: 'flex-end' },
+  pillFill: { width: '100%', borderRadius: 6 },
+  activityDayLabel: { fontSize: 10, fontWeight: '800', color: '#94a3b8' },
+  activityDayActive: { color: '#1a1c1c' },
+  activeDayDot: { position: 'absolute', bottom: -8, width: 4, height: 4, borderRadius: 2, backgroundColor: '#b8001d' },
+  summaryFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 16 },
+  footerStat: { alignItems: 'center' },
+  footerStatVal: { fontSize: 16, fontWeight: '800', color: '#1a1c1c' },
+  footerStatLabel: { fontSize: 8, fontWeight: '800', color: '#94a3b8', marginTop: 2 },
+  footerStatDivider: { width: 1, height: 20, backgroundColor: '#f1f5f9' },
   recentSection: { marginBottom: 16 },
   recentHeader: {
     flexDirection: 'row',

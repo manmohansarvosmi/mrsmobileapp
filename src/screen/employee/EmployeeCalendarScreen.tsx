@@ -277,15 +277,24 @@ const EmployeeCalendarScreen: React.FC = () => {
               </View>
               <View style={[
                 styles.statusBadge,
-                (selectedDayData.status === 'absent' || selectedDayData.status === 'leave') && { backgroundColor: '#fef2f2', borderColor: '#fee2e2' }
+                selectedDayData.status === 'present'                                         && { backgroundColor: '#ecfdf5', borderColor: '#d1fae5' },
+                selectedDayData.status === 'late'                                            && { backgroundColor: '#fffbeb', borderColor: '#fde68a' },
+                (selectedDayData.status === 'absent' || selectedDayData.status === 'leave') && { backgroundColor: '#fef2f2', borderColor: '#fee2e2' },
+                (selectedDayData.status === 'weekend' || selectedDayData.status === 'pending' || selectedDayData.status === 'none') && { backgroundColor: '#f8fafc', borderColor: '#e2e8f0' },
               ]}>
                 <View style={[
                   styles.statusBadgeDot,
-                  (selectedDayData.status === 'absent' || selectedDayData.status === 'leave') && { backgroundColor: '#ef4444' }
+                  selectedDayData.status === 'present'                                         && { backgroundColor: '#10b981' },
+                  selectedDayData.status === 'late'                                            && { backgroundColor: '#f59e0b' },
+                  (selectedDayData.status === 'absent' || selectedDayData.status === 'leave') && { backgroundColor: '#ef4444' },
+                  (selectedDayData.status === 'weekend' || selectedDayData.status === 'pending' || selectedDayData.status === 'none') && { backgroundColor: '#94a3b8' },
                 ]} />
                 <Text style={[
                   styles.statusBadgeText,
-                  (selectedDayData.status === 'absent' || selectedDayData.status === 'leave') && { color: '#b91c1c' }
+                  selectedDayData.status === 'present'                                         && { color: '#047857' },
+                  selectedDayData.status === 'late'                                            && { color: '#b45309' },
+                  (selectedDayData.status === 'absent' || selectedDayData.status === 'leave') && { color: '#b91c1c' },
+                  (selectedDayData.status === 'weekend' || selectedDayData.status === 'pending' || selectedDayData.status === 'none') && { color: '#64748b' },
                 ]}>{selectedDayData.status?.toUpperCase()}</Text>
               </View>
             </View>
@@ -296,7 +305,7 @@ const EmployeeCalendarScreen: React.FC = () => {
                   <Icon name="login" size={20} color="#059669" />
                 </View>
                 <View>
-                  <Text style={styles.infoVal}>{selectedDayData.checkInTime || '--:--'}</Text>
+                  <Text style={[styles.infoVal, { color: selectedDayData.status === 'late' ? '#d97706' : '#059669' }]}>{selectedDayData.inTime || '--:--'}</Text>
                   <Text style={styles.infoSub}>Check In Time</Text>
                 </View>
               </View>
@@ -306,7 +315,7 @@ const EmployeeCalendarScreen: React.FC = () => {
                   <Icon name="logout" size={20} color="#dc2626" />
                 </View>
                 <View>
-                  <Text style={styles.infoVal}>{selectedDayData.checkOutTime || '--:--'}</Text>
+                  <Text style={[styles.infoVal, { color: selectedDayData.status === 'late' ? '#d97706' : '#059669' }]}>{selectedDayData.outTime || '--:--'}</Text>
                   <Text style={styles.infoSub}>Check Out Time</Text>
                 </View>
               </View>
@@ -322,30 +331,9 @@ const EmployeeCalendarScreen: React.FC = () => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.detailBtn} activeOpacity={0.8}>
-              <Text style={styles.detailBtnText}>Detailed Entry Report</Text>
-              <Icon name="arrow-forward" size={16} color="#ffffff" />
-            </TouchableOpacity>
           </View>
         )}
 
-        {/* Month Summary Card */}
-        {summary && (
-          <View style={styles.statsSummaryGrid}>
-            <View style={[styles.statBox, { borderLeftColor: '#10b981' }]}>
-              <Text style={styles.statLabel}>PRESENT</Text>
-              <Text style={[styles.statValue, { color: '#10b981' }]}>{summary.presentDays || 0}</Text>
-            </View>
-            <View style={[styles.statBox, { borderLeftColor: '#ef4444' }]}>
-              <Text style={styles.statLabel}>ABSENT</Text>
-              <Text style={[styles.statValue, { color: '#ef4444' }]}>{summary.absentDays || 0}</Text>
-            </View>
-            <View style={[styles.statBox, { borderLeftColor: '#f59e0b' }]}>
-              <Text style={styles.statLabel}>LATE</Text>
-              <Text style={[styles.statValue, { color: '#f59e0b' }]}>{summary.lateDays || 0}</Text>
-            </View>
-          </View>
-        )}
 
         {/* Legend Card */}
         <View style={styles.legendCard}>
@@ -369,53 +357,6 @@ const EmployeeCalendarScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Day Detail Card */}
-        {selectedDayData && (
-          <View style={styles.detailCard}>
-            <View style={styles.detailHeader}>
-              <View>
-                <Text style={styles.detailDate}>
-                  {selectedDayData.day} {currentDate.toLocaleString('default', { month: 'long' })}
-                </Text>
-                <View style={styles.detailStatusRow}>
-                  <View style={[styles.statusDotSmall,
-                  selectedDayData.status?.toLowerCase() === 'present' ? styles.dotGreen :
-                    (selectedDayData.status?.toLowerCase() === 'absent' || selectedDayData.status?.toLowerCase() === 'leave') ? styles.dotRed : styles.dotGray
-                  ]} />
-                  <Text style={[styles.detailStatusText,
-                  selectedDayData.status?.toLowerCase() === 'present' ? styles.textGreen :
-                    (selectedDayData.status?.toLowerCase() === 'absent' || selectedDayData.status?.toLowerCase() === 'leave') ? styles.textRed : styles.textGray
-                  ]}>
-                    {selectedDayData.status === 'none' ? 'NO DATA' : selectedDayData.status?.toUpperCase()}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.hoursBadge}>
-                <Text style={styles.hoursVal}>{selectedDayData.hours || '--'}</Text>
-                <Text style={styles.hoursLabel}>Working Hrs</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailDivider} />
-
-            <View style={styles.detailGrid}>
-              <View style={styles.detailItem}>
-                <Icon name="login" size={20} color="#64748b" />
-                <View style={styles.detailItemText}>
-                  <Text style={styles.detailItemVal}>{formatTime(selectedDayData.checkInTime)}</Text>
-                  <Text style={styles.detailItemSub}>PUNCH IN</Text>
-                </View>
-              </View>
-              <View style={styles.detailItem}>
-                <Icon name="logout" size={20} color="#64748b" />
-                <View style={styles.detailItemText}>
-                  <Text style={styles.detailItemVal}>{formatTime(selectedDayData.checkOutTime)}</Text>
-                  <Text style={styles.detailItemSub}>PUNCH OUT</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -428,10 +369,6 @@ const EmployeeCalendarScreen: React.FC = () => {
           <View style={styles.navActiveIndicator} />
           <Icon name="calendar-month" size={24} color="#e11d2e" />
           <Text style={[styles.navLabel, styles.navActiveLabel]}>CALENDAR</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-          <Icon name="route" size={24} color="#94a3b8" />
-          <Text style={styles.navLabel}>ROUTES</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => navigation.navigate('Profile')}>
           <Icon name="person" size={24} color="#94a3b8" />

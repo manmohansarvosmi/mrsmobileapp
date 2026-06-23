@@ -50,8 +50,13 @@ const EmployeeRouteScreen: React.FC = () => {
   };
 
   const formatTime = (isoString: string): string => {
-    const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    if (!isoString) return '--:--';
+    return new Date(isoString).toLocaleTimeString('en-IN', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      timeZone: 'Asia/Kolkata'
+    });
   };
 
   if (loading) {
